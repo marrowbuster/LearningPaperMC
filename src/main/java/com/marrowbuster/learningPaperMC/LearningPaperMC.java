@@ -3,6 +3,7 @@ package com.marrowbuster.learningPaperMC;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -11,6 +12,7 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.Material;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -45,8 +47,11 @@ public class LearningPaperMC extends JavaPlugin implements Listener {
                 event.getPlayer().sendMessage(Component.text(event.getPlayer().getName() + " threw a sword into the sky."));
             }
             Location playerLocation = p.getLocation();
-            playerLocation.getWorld().spawn(playerLocation.clone(), ItemDisplay.class, (spawnedDisplay) -> {
-                spawnedDisplay.setItemStack(new ItemStack(Material.IRON_SWORD));
+            playerLocation.getWorld().spawn(playerLocation.clone(), ArmorStand.class, (spawnedStand) -> {
+                spawnedStand.setItem(EquipmentSlot.HAND, new ItemStack(Material.IRON_SWORD));
+                event.getPlayer().sendMessage(Component.text("original velocity: " + spawnedStand.getVelocity().length()));
+                spawnedStand.setVelocity(p.getLocation().getDirection().multiply(3));
+                event.getPlayer().sendMessage(Component.text("new velocity: " + spawnedStand.getVelocity().length()));
             });
         }
     }
