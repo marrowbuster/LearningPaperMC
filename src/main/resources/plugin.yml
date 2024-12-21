@@ -1,0 +1,5 @@
+name: LearningPaperMC
+version: '1.0-SNAPSHOT'
+main: com.marrowbuster.learningPaperMC.LearningPaperMC
+description: Learning PaperMC
+api-version: '1.21'
