@@ -48,6 +48,8 @@ public class LearningPaperMC extends JavaPlugin implements Listener {
             }
             Location playerLocation = p.getLocation();
             playerLocation.getWorld().spawn(playerLocation.clone(), ArmorStand.class, (spawnedStand) -> {
+                spawnedStand.setVisible(false);
+                spawnedStand.setSmall(true);
                 spawnedStand.setItem(EquipmentSlot.HAND, new ItemStack(Material.IRON_SWORD));
                 event.getPlayer().sendMessage(Component.text("original velocity: " + spawnedStand.getVelocity().length()));
                 spawnedStand.setVelocity(p.getLocation().getDirection().multiply(3));
