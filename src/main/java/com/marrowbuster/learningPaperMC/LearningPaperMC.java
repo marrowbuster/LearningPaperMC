@@ -21,14 +21,16 @@ import org.joml.Matrix4f;
 
 public class LearningPaperMC extends JavaPlugin implements Listener {
 
-    private final Plugin plugin;
+    private static JavaPlugin instance;
 
-    public LearningPaperMC(Plugin plugin) {
-        this.plugin = plugin;
+    public static JavaPlugin getInstance() {
+        return instance;
     }
+
     @Override
     public void onEnable() {
         Bukkit.getPluginManager().registerEvents(this, this);
+        instance = this;
     }
 
     @EventHandler
@@ -55,11 +57,10 @@ public class LearningPaperMC extends JavaPlugin implements Listener {
             }
             Location playerLocation = p.getLocation();
             ItemDisplay swordDisplay = playerLocation.getWorld().spawn(playerLocation.clone(), ItemDisplay.class, (disp) -> {
-                disp.setRotation(-180f + 1 * 120f, 0);
-                disp.setItemStack(new ItemStack(Material.GOLDEN_SWORD));
+                disp.setItemStack(new ItemStack(Material.IRON_SWORD));
             });
-            Matrix4f mat = new Matrix4f().scale(0.5F);
-            Bukkit.getScheduler().runTaskTimer(plugin, task -> {
+            Matrix4f mat = new Matrix4f();
+            Bukkit.getScheduler().runTaskTimer(instance, task -> {
                 if (!swordDisplay.isValid()) { // display was removed from the world, abort task
                     task.cancel();
                     return;
