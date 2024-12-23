@@ -68,8 +68,8 @@ public class LearningPaperMC extends JavaPlugin implements Listener {
 
                 swordDisplay.setTransformationMatrix(mat.rotateY(((float) Math.toRadians(180)) + 0.1F /* prevent the client from interpolating in reverse */));
                 swordDisplay.setInterpolationDelay(0); // no delay to the interpolation
-                swordDisplay.setInterpolationDuration(1); // set the duration of the interpolated rotation
-            }, 1 /* delay the initial transformation by one tick from display creation */, 1);
+                swordDisplay.setInterpolationDuration(100); // set the duration of the interpolated rotation
+            }, 1 /* delay the initial transformation by one tick from display creation */, 100);
         }
     }
 
