@@ -67,27 +67,32 @@ public class LearningPaperMC extends JavaPlugin implements Listener {
             for (int i = 0; i < 3; i++) {
                 int finalI = i;
                 items[finalI] = playerLocation.getWorld().spawn(playerLocation.clone(), ItemDisplay.class, (disp) -> {
-                    disp.setRotation(-180f + finalI * 120f, 0);
+                    // disp.setRotation(-180f + finalI * 120f, 0);
                     disp.setItemStack(new ItemStack(Material.IRON_SWORD));
 
                     Transformation xform = disp.getTransformation();
-                    xform.getTranslation().set(new Vector3f(1f, 1f, 0f));
+                    xform.getTranslation().set(new Vector3f((float) Math.sin(finalI * Math.toRadians(120d)), 1f, (float) Math.cos(finalI * Math.toRadians(120d))));
                     xform.getLeftRotation().set(new AxisAngle4f((float) Math.toRadians(90d), 1f, 0f, 0f));
-                    xform.getRightRotation().set(new AxisAngle4f((float) Math.toRadians(-135d), 0f, 0f, 1f));
+                    // ugly and inefficient but this shit works at least -.-;;;
+                    xform.getRightRotation().set(new AxisAngle4f((float) Math.toRadians(-45d + finalI * -120d), 0f, 0f, 1f));
                     disp.setTransformation(xform);
                 });
                 orbitingItems.put(p.getUniqueId(), items);
-                Matrix4f mat = new Matrix4f();
-                Bukkit.getScheduler().runTaskTimer(instance, task -> {
+                /* Bukkit.getScheduler().runTaskTimer(instance, task -> {
                     if (!items[finalI].isValid()) { // display was removed from the world, abort task
                         task.cancel();
                         return;
                     }
+                    items[finalI].setRotation(items[finalI]., 0);
 
-                    items[finalI].setTransformationMatrix(mat.rotateLocalX((float) Math.PI + 0.1F /* prevent the client from interpolating in reverse */));
+
+                    Transformation xform = items[finalI].getTransformation();
+
+
+                    items[finalI].setTransformation(mat.rotateX((float) Math.PI + 0.1F));
                     items[finalI].setInterpolationDelay(0); // no delay to the interpolation
                     items[finalI].setInterpolationDuration(100); // set the duration of the interpolated rotation
-                }, 1 /* delay the initial transformation by one tick from display creation */, 100);
+                }, 1, 100); */
             }
 
         }
