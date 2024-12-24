@@ -67,7 +67,6 @@ public class LearningPaperMC extends JavaPlugin implements Listener {
             for (int i = 0; i < 3; i++) {
                 int finalI = i;
                 items[finalI] = playerLocation.getWorld().spawn(playerLocation.clone(), ItemDisplay.class, (disp) -> {
-                    // disp.setRotation(-180f + finalI * 120f, 0);
                     disp.setItemStack(new ItemStack(Material.IRON_SWORD));
 
                     Transformation xform = disp.getTransformation();
@@ -78,21 +77,17 @@ public class LearningPaperMC extends JavaPlugin implements Listener {
                     disp.setTransformation(xform);
                 });
                 orbitingItems.put(p.getUniqueId(), items);
-                /* Bukkit.getScheduler().runTaskTimer(instance, task -> {
+                Bukkit.getScheduler().runTaskTimer(instance, task -> {
                     if (!items[finalI].isValid()) { // display was removed from the world, abort task
                         task.cancel();
                         return;
                     }
-                    items[finalI].setRotation(items[finalI]., 0);
-
-
                     Transformation xform = items[finalI].getTransformation();
-
-
-                    items[finalI].setTransformation(mat.rotateX((float) Math.PI + 0.1F));
+                    xform.getTranslation().set(new Vector3f((float) Math.sin((finalI + 1) * Math.toRadians(120d)), 1f, (float) Math.cos((finalI + 1) * Math.toRadians(100d))));
+                    xform.getRightRotation().set(new AxisAngle4f((float) Math.toRadians(-45d + (finalI + 1) * -120d), 0f, 0f, 1f));
                     items[finalI].setInterpolationDelay(0); // no delay to the interpolation
                     items[finalI].setInterpolationDuration(100); // set the duration of the interpolated rotation
-                }, 1, 100); */
+                }, 1, 100);
             }
 
         }
