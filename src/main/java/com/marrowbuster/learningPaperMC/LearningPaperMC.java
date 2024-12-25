@@ -49,7 +49,9 @@ public class LearningPaperMC extends JavaPlugin implements Listener {
         event.getPlayer().sendMessage(Component.text("byebye, " + event.getPlayer().getName() + "!"));
     }
 
-    @EventHandler
+    // OLD USER CODE
+
+    /* @EventHandler
     public void onPlayerRightClick(PlayerInteractEvent event) {
         ItemStack ironSword = new ItemStack(Material.IRON_SWORD, 1);
         Player p = event.getPlayer();
@@ -89,8 +91,73 @@ public class LearningPaperMC extends JavaPlugin implements Listener {
                     items[finalI].setInterpolationDuration(100); // set the duration of the interpolated rotation
                 }, 1, 100);
             }
+        }
+    } */
 
+    // NEW CODE GIVEN BY NONE OTHER THAN CUNTGPT
+
+    @EventHandler
+    public void onPlayerRightClick(PlayerInteractEvent event) {
+        ItemStack ironSword = new ItemStack(Material.IRON_SWORD, 1);
+        Player player = event.getPlayer();
+
+        if (player.getInventory().getItemInMainHand().isSimilar(ironSword)) {
+            if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+                player.sendMessage(Component.text(player.getName() + " activated the sword spinner!"));
+
+                Location playerLocation = player.getLocation();
+                ItemDisplay[] items = new ItemDisplay[3];
+                double radius = 2.0; // Distance from the player
+                double initialAngle = 0; // Starting angle for the swords
+
+                // Spawn the swords in their initial positions
+                for (int i = 0; i < 3; i++) {
+                    int finalI = i;
+                    items[finalI] = playerLocation.getWorld().spawn(playerLocation.clone(), ItemDisplay.class, (disp) -> {
+                        disp.setItemStack(new ItemStack(Material.IRON_SWORD));
+
+                        double angle = initialAngle + Math.toRadians(finalI * 120); // 120 degrees apart
+                        double x = playerLocation.getX() + radius * Math.cos(angle);
+                        double z = playerLocation.getZ() + radius * Math.sin(angle);
+                        double y = playerLocation.getY() + 1; // Offset above the player
+
+                        disp.teleport(new Location(playerLocation.getWorld(), x, y, z));
+
+                        Transformation xform = disp.getTransformation();
+                        xform.getRightRotation().set(new AxisAngle4f((float) angle, 0f, 1f, 0f)); // Orient outward
+                        disp.setTransformation(xform);
+                    });
+                }
+
+                // Schedule the rotation task
+                Bukkit.getScheduler().runTaskTimer(instance, task -> {
+                    if (!player.isOnline() || !player.isValid()) {
+                        task.cancel();
+                        for (ItemDisplay item : items) {
+                            if (item.isValid()) {
+                                item.remove();
+                            }
+                        }
+                        return;
+                    }
+
+                    Location currentLocation = player.getLocation();
+                    for (int i = 0; i < 3; i++) {
+                        double angle = (System.currentTimeMillis() % 3600) / 360.0 * Math.toRadians(360); // Smooth rotation
+                        angle += Math.toRadians(i * 120); // Offset for each sword
+
+                        double x = currentLocation.getX() + radius * Math.cos(angle);
+                        double z = currentLocation.getZ() + radius * Math.sin(angle);
+                        double y = currentLocation.getY() + 1;
+
+                        items[i].teleport(new Location(currentLocation.getWorld(), x, y, z));
+
+                        Transformation xform = items[i].getTransformation();
+                        xform.getRightRotation().set(new AxisAngle4f((float) angle, 0f, 1f, 0f));
+                        items[i].setTransformation(xform);
+                    }
+                }, 0, 2); // Run every 2 ticks for smooth rotation
+            }
         }
     }
-
 }
