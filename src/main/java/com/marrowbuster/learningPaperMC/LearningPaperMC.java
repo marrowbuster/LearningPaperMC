@@ -37,12 +37,16 @@ public class LearningPaperMC extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        event.getPlayer().sendMessage(Component.text("welcome, " + event.getPlayer().getName() + "!"));
+        event.getPlayer()
+                .sendMessage(Component.text("welcome, " + event.getPlayer().getName() + "!",
+                                            TextColor.color(187, 233, 255)));
     }
 
     @EventHandler
     public void onPlayerLeave(PlayerQuitEvent event) {
-        event.getPlayer().sendMessage(Component.text("byebye, " + event.getPlayer().getName() + "!"));
+        event.getPlayer()
+                .sendMessage(
+                        Component.text("byebye, " + event.getPlayer().getName() + "!", TextColor.color(255, 254, 211)));
         this.orbitingItems.remove(event.getPlayer().getUniqueId());
     }
 
