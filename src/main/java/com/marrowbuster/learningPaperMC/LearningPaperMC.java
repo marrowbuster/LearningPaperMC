@@ -124,7 +124,8 @@ public class LearningPaperMC extends JavaPlugin implements Listener {
                         disp.teleport(new Location(playerLocation.getWorld(), x, y, z));
 
                         Transformation xform = disp.getTransformation();
-                        xform.getRightRotation().set(new AxisAngle4f((float) angle, 0f, 1f, 0f)); // Orient outward
+                        xform.getLeftRotation().set(new AxisAngle4f((float) Math.toRadians(90d), 1f, 0f, 0f));
+                        xform.getRightRotation().set(new AxisAngle4f((float) (angle + Math.toRadians(225d)), 0f, 0f, 1f)); // Orient outward
                         disp.setTransformation(xform);
                     });
                 }
@@ -143,7 +144,7 @@ public class LearningPaperMC extends JavaPlugin implements Listener {
 
                     Location currentLocation = player.getLocation();
                     for (int i = 0; i < 3; i++) {
-                        double angle = (System.currentTimeMillis() % 3600) / 360.0 * Math.toRadians(360); // Smooth rotation
+                        double angle = ((System.currentTimeMillis() * 0.25d) % 3600) / 360.0 * Math.toRadians(360); // Smooth rotation
                         angle += Math.toRadians(i * 120); // Offset for each sword
 
                         double x = currentLocation.getX() + radius * Math.cos(angle);
@@ -153,10 +154,11 @@ public class LearningPaperMC extends JavaPlugin implements Listener {
                         items[i].teleport(new Location(currentLocation.getWorld(), x, y, z));
 
                         Transformation xform = items[i].getTransformation();
-                        xform.getRightRotation().set(new AxisAngle4f((float) angle, 0f, 1f, 0f));
+                        xform.getLeftRotation().set(new AxisAngle4f((float) Math.toRadians(90d), 1f, 0f, 0f));
+                        xform.getRightRotation().set(new AxisAngle4f((float) (angle + Math.toRadians(225d)), 0f, 0f, 1f));
                         items[i].setTransformation(xform);
                     }
-                }, 0, 2); // Run every 2 ticks for smooth rotation
+                }, 0, 1); // Run every 2 ticks for smooth rotation
             }
         }
     }
