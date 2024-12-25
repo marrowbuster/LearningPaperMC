@@ -18,12 +18,17 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.joml.AxisAngle4f;
 
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public class MainListener implements Listener {
 
+    private static final Set<Material> KNOWN_WEAPONS =
+            EnumSet.of(Material.WOODEN_SWORD, Material.STONE_SWORD, Material.IRON_SWORD, Material.GOLDEN_SWORD,
+                       Material.DIAMOND_SWORD, Material.NETHERITE_SWORD);
     private static final double ITEM_DISTANCE_FROM_PLAYER = 2.0;
     private static final int ITEM_COUNT = 3;
     private static final double ITEM_ANGLE_GAP = 360D / ITEM_COUNT;
@@ -54,15 +59,15 @@ public class MainListener implements Listener {
     public void onPlayerRightClick(PlayerInteractEvent event) {
         final Player player = event.getPlayer();
 
-        if (event.getHand() == EquipmentSlot.HAND &&
-            player.getInventory().getItemInMainHand().getType() == Material.IRON_SWORD &&
-            event.getAction().isRightClick()) {
+        if (event.getHand() == EquipmentSlot.HAND && event.getItem() != null &&
+            KNOWN_WEAPONS.contains(event.getItem().getType()) && event.getAction().isRightClick()) {
             if (this.orbitingItems.remove(player.getUniqueId()) != null) {
                 player.sendActionBar(Component.text("Sword spinners deactivated.", TextColor.color(187, 233, 255)));
                 return;
             }
 
             final Location playerLocation = player.getLocation();
+            final ItemStack itemStack = new ItemStack(event.getItem().getType());
             final ItemDisplay[] items = new ItemDisplay[ITEM_COUNT];
 
             this.orbitingItems.put(player.getUniqueId(), items);
@@ -70,7 +75,7 @@ public class MainListener implements Listener {
             for (int i = 0; i < ITEM_COUNT; i++) {
                 final int finalI = i;
                 items[i] = playerLocation.getWorld().spawn(playerLocation.clone(), ItemDisplay.class, itemDisplay -> {
-                    itemDisplay.setItemStack(new ItemStack(Material.IRON_SWORD));
+                    itemDisplay.setItemStack(itemStack);
 
                     final double angle = Math.toRadians(finalI * ITEM_ANGLE_GAP);
                     final double x = playerLocation.getX() + ITEM_DISTANCE_FROM_PLAYER * Math.cos(angle);
