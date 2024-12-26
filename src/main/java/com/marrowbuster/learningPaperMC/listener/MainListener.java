@@ -15,6 +15,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.util.Transformation;
 import org.jetbrains.annotations.NotNull;
 import org.joml.AxisAngle4f;
 
@@ -26,19 +27,69 @@ import java.util.UUID;
 
 public class MainListener implements Listener {
 
+    /**
+     * Known set of weapon materials. Nominally contains each type of sword.
+     */
     private static final Set<Material> KNOWN_WEAPONS =
             EnumSet.of(Material.WOODEN_SWORD, Material.STONE_SWORD, Material.IRON_SWORD, Material.GOLDEN_SWORD,
                        Material.DIAMOND_SWORD, Material.NETHERITE_SWORD);
+    /**
+     * Distance from which the swords orbit around the player.
+     */
     private static final double ITEM_DISTANCE_FROM_PLAYER = 2.0;
-    private static final int ITEM_COUNT = 3;
-    private static final double ITEM_ANGLE_GAP = 360D / ITEM_COUNT;
 
+    /**
+     * Number of swords that orbit around the player.
+     */
+    private static final int ITEM_COUNT = 5;
+
+    /**
+     * Degrees in a circle.
+     */
+    private static final double DEGREES_IN_CIRCLE = 360d;
+
+    /**
+     * Amount by which each sword is rotated from the next, depending on the number of swords.
+     */
+    private static final double ITEM_ANGLE_GAP = DEGREES_IN_CIRCLE / ITEM_COUNT;
+
+    /**
+     * Value by which the System.currentTimeMillis() parameter in the bukkit scheduler lambda function in
+     * onPlayerRightClick is modded by. Nominally 10 * DEGREES_IN_CIRCLE = 3600.
+     */
+    private static final double MILLIS_MOD_PERIOD = 10 * DEGREES_IN_CIRCLE;
+
+    /**
+     * Timescale by which the System.currentTimeMillis() parameter in the bukkit scheduler lambda function in
+     * onPlayerRightClick is multiplied by. Controls how quickly (or slowly) the swords rotate around the player.
+     */
+    private static final double TIMESCALE = 0.2d;
+
+    /**
+     * HashMap of the summoned sword ItemDisplays which orbit around the player that summoned them.
+     */
     private final Map<UUID, ItemDisplay[]> orbitingItems = new HashMap<>();
+
+    /**
+     * Main plugin that this class is registered to.
+     */
     private final JavaPlugin plugin;
+
+    /**
+     * Constructor; creates a new MainListener for the given plugin.
+     *
+     * @param plugin     {@link JavaPlugin} The main plugin class that calls upon this constructor
+     */
 
     public MainListener(@NotNull JavaPlugin plugin) {
         this.plugin = plugin;
     }
+
+    /**
+     * Sends a greeting message to the player upon entering.
+     *
+     * @param event     {@link PlayerJoinEvent} Player join event.
+     */
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
@@ -46,6 +97,12 @@ public class MainListener implements Listener {
                 .sendMessage(Component.text("welcome, " + event.getPlayer().getName() + "!",
                                             TextColor.color(187, 233, 255)));
     }
+
+    /**
+     * Sends a farewell message to the player upon leaving. (probs redundant, might wanna change this to a server broadcast)
+     *
+     * @param event     {@link PlayerQuitEvent} Player quit event.
+     */
 
     @EventHandler
     public void onPlayerLeave(PlayerQuitEvent event) {
@@ -55,6 +112,12 @@ public class MainListener implements Listener {
         this.orbitingItems.remove(event.getPlayer().getUniqueId());
     }
 
+    /**
+     * Spawns or despawns a "sword spinner" around the player upon a right-click event with a sword of any type in hand.
+     *
+     * @param event     {@link PlayerInteractEvent} Player interaction event. Method looks for occurrence of a right click.
+     */
+
     @EventHandler
     public void onPlayerRightClick(PlayerInteractEvent event) {
         final Player player = event.getPlayer();
@@ -62,7 +125,7 @@ public class MainListener implements Listener {
         if (event.getHand() == EquipmentSlot.HAND && event.getItem() != null &&
             KNOWN_WEAPONS.contains(event.getItem().getType()) && event.getAction().isRightClick()) {
             if (this.orbitingItems.remove(player.getUniqueId()) != null) {
-                player.sendActionBar(Component.text("Sword spinners deactivated.", TextColor.color(187, 233, 255)));
+                player.sendActionBar(Component.text("Sword spinner deactivated.", TextColor.color(187, 233, 255)));
                 return;
             }
 
@@ -101,8 +164,8 @@ public class MainListener implements Listener {
                 final Location currentLocation = player.getLocation();
 
                 for (int i = 0; i < ITEM_COUNT; i++) {
-                    final double angle = System.currentTimeMillis() * 0.25d % 3600 / 360.0 * Math.toRadians(360) +
-                                         Math.toRadians(i * 120);
+                    final double angle = System.currentTimeMillis() * TIMESCALE % MILLIS_MOD_PERIOD / DEGREES_IN_CIRCLE * Math.toRadians(DEGREES_IN_CIRCLE) +
+                                         Math.toRadians(i * ITEM_ANGLE_GAP);
                     final double x = currentLocation.getX() + ITEM_DISTANCE_FROM_PLAYER * Math.cos(angle);
                     final double y = currentLocation.getY() + 1;
                     final double z = currentLocation.getZ() + ITEM_DISTANCE_FROM_PLAYER * Math.sin(angle);
@@ -112,16 +175,24 @@ public class MainListener implements Listener {
                 }
             }, 0, 1);
 
-            player.sendActionBar(Component.text("Sword spinner activated.", TextColor.color(187, 233, 255)));
+            player.sendActionBar(Component.text("Sword spinner activated. Stay safe!", TextColor.color(187, 233, 255)));
         }
     }
 
+    /**
+     * Rotates a given ItemDisplay by a certain angle.
+     *
+     * @param itemDisplay   {@link ItemDisplay} The ItemDisplay to transform.
+     * @param angle         Angle by which to rotate the aforementioned itemDisplay.
+     */
+
     private static void rotateItemDisplay(ItemDisplay itemDisplay, double angle) {
-        final var transformation = itemDisplay.getTransformation();
+        final Transformation transformation = itemDisplay.getTransformation();
 
         transformation.getLeftRotation().set(new AxisAngle4f((float) Math.toRadians(90d), 1f, 0f, 0f));
         transformation.getRightRotation().set(new AxisAngle4f((float) (angle + Math.toRadians(225d)), 0f, 0f, 1f));
 
         itemDisplay.setTransformation(transformation);
+        itemDisplay.setInterpolationDelay(0);
     }
 }
