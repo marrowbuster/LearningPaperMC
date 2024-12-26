@@ -80,7 +80,6 @@ public class MainListener implements Listener {
      *
      * @param plugin     {@link JavaPlugin} The main plugin class that calls upon this constructor
      */
-
     public MainListener(@NotNull JavaPlugin plugin) {
         this.plugin = plugin;
     }
@@ -90,7 +89,6 @@ public class MainListener implements Listener {
      *
      * @param event     {@link PlayerJoinEvent} Player join event.
      */
-
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         event.getPlayer()
@@ -103,7 +101,6 @@ public class MainListener implements Listener {
      *
      * @param event     {@link PlayerQuitEvent} Player quit event.
      */
-
     @EventHandler
     public void onPlayerLeave(PlayerQuitEvent event) {
         event.getPlayer()
@@ -117,14 +114,14 @@ public class MainListener implements Listener {
      *
      * @param event     {@link PlayerInteractEvent} Player interaction event. Method looks for occurrence of a right click.
      */
-
     @EventHandler
     public void onPlayerRightClick(PlayerInteractEvent event) {
         final Player player = event.getPlayer();
+        final UUID uuid = player.getUniqueId();
 
         if (event.getHand() == EquipmentSlot.HAND && event.getItem() != null &&
             KNOWN_WEAPONS.contains(event.getItem().getType()) && event.getAction().isRightClick()) {
-            if (this.orbitingItems.remove(player.getUniqueId()) != null) {
+            if (this.orbitingItems.remove(uuid) != null) {
                 player.sendActionBar(Component.text("Sword spinner deactivated.", TextColor.color(187, 233, 255)));
                 return;
             }
@@ -133,25 +130,24 @@ public class MainListener implements Listener {
             final ItemStack itemStack = new ItemStack(event.getItem().getType());
             final ItemDisplay[] items = new ItemDisplay[ITEM_COUNT];
 
-            this.orbitingItems.put(player.getUniqueId(), items);
+            this.orbitingItems.put(uuid, items);
 
             for (int i = 0; i < ITEM_COUNT; i++) {
                 final int finalI = i;
                 items[i] = playerLocation.getWorld().spawn(playerLocation.clone(), ItemDisplay.class, itemDisplay -> {
                     itemDisplay.setItemStack(itemStack);
-
                     final double angle = Math.toRadians(finalI * ITEM_ANGLE_GAP);
-                    final double x = playerLocation.getX() + ITEM_DISTANCE_FROM_PLAYER * Math.cos(angle);
-                    final double y = playerLocation.getY() + 1;
-                    final double z = playerLocation.getZ() + ITEM_DISTANCE_FROM_PLAYER * Math.sin(angle);
 
-                    itemDisplay.teleport(new Location(playerLocation.getWorld(), x, y, z));
+                    itemDisplay.teleport(new Location(playerLocation.getWorld(),
+                            playerLocation.getX() + ITEM_DISTANCE_FROM_PLAYER * Math.cos(angle),
+                            playerLocation.getY() + 1,
+                            playerLocation.getZ() + ITEM_DISTANCE_FROM_PLAYER * Math.sin(angle)));
                     rotateItemDisplay(itemDisplay, angle);
                 });
             }
 
             Bukkit.getScheduler().runTaskTimer(this.plugin, task -> {
-                if (!this.orbitingItems.containsKey(player.getUniqueId())) {
+                if (!this.orbitingItems.containsKey(uuid)) {
                     task.cancel();
 
                     for (ItemDisplay item : items) {
@@ -166,11 +162,11 @@ public class MainListener implements Listener {
                 for (int i = 0; i < ITEM_COUNT; i++) {
                     final double angle = System.currentTimeMillis() * TIMESCALE % MILLIS_MOD_PERIOD / DEGREES_IN_CIRCLE * Math.toRadians(DEGREES_IN_CIRCLE) +
                                          Math.toRadians(i * ITEM_ANGLE_GAP);
-                    final double x = currentLocation.getX() + ITEM_DISTANCE_FROM_PLAYER * Math.cos(angle);
-                    final double y = currentLocation.getY() + 1;
-                    final double z = currentLocation.getZ() + ITEM_DISTANCE_FROM_PLAYER * Math.sin(angle);
 
-                    items[i].teleport(new Location(currentLocation.getWorld(), x, y, z));
+                    items[i].teleport(new Location(currentLocation.getWorld(),
+                            currentLocation.getX() + ITEM_DISTANCE_FROM_PLAYER * Math.cos(angle),
+                            currentLocation.getY() + 1,
+                            currentLocation.getZ() + ITEM_DISTANCE_FROM_PLAYER * Math.sin(angle)));
                     rotateItemDisplay(items[i], angle);
                 }
             }, 0, 1);
@@ -185,7 +181,6 @@ public class MainListener implements Listener {
      * @param itemDisplay   {@link ItemDisplay} The ItemDisplay to transform.
      * @param angle         Angle by which to rotate the aforementioned itemDisplay.
      */
-
     private static void rotateItemDisplay(ItemDisplay itemDisplay, double angle) {
         final Transformation transformation = itemDisplay.getTransformation();
 
@@ -193,6 +188,5 @@ public class MainListener implements Listener {
         transformation.getRightRotation().set(new AxisAngle4f((float) (angle + Math.toRadians(225d)), 0f, 0f, 1f));
 
         itemDisplay.setTransformation(transformation);
-        itemDisplay.setInterpolationDelay(0);
     }
 }
