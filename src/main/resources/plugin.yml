@@ -3,3 +3,7 @@ version: '1.0-SNAPSHOT'
 main: com.marrowbuster.learningPaperMC.LearningPaperMC
 description: Learning PaperMC
 api-version: '1.21'
+
+commands:
+  spinner:
+    description: Lets you edit the settings of your spinning swords.

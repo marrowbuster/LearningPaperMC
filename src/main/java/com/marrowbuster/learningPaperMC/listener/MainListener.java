@@ -1,10 +1,11 @@
 package com.marrowbuster.learningPaperMC.listener;
 
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -19,11 +20,14 @@ import org.bukkit.util.Transformation;
 import org.jetbrains.annotations.NotNull;
 import org.joml.AxisAngle4f;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 public class MainListener implements Listener {
 
@@ -39,19 +43,9 @@ public class MainListener implements Listener {
     private static final double ITEM_DISTANCE_FROM_PLAYER = 2.0;
 
     /**
-     * Number of swords that orbit around the player.
-     */
-    private static final int ITEM_COUNT = 5;
-
-    /**
      * Degrees in a circle.
      */
     private static final double DEGREES_IN_CIRCLE = 360d;
-
-    /**
-     * Amount by which each sword is rotated from the next, depending on the number of swords.
-     */
-    private static final double ITEM_ANGLE_GAP = DEGREES_IN_CIRCLE / ITEM_COUNT;
 
     /**
      * Value by which the System.currentTimeMillis() parameter in the bukkit scheduler lambda function in
@@ -66,9 +60,9 @@ public class MainListener implements Listener {
     private static final double TIMESCALE = 0.2d;
 
     /**
-     * HashMap of the summoned sword ItemDisplays which orbit around the player that summoned them.
+     * HashMap of player settings and the summoned sword ItemDisplays which orbit around the player that summoned them.
      */
-    private final Map<UUID, ItemDisplay[]> orbitingItems = new HashMap<>();
+    private final Map<UUID, PlayerData> playerDataMap = new HashMap<>();
 
     /**
      * Main plugin that this class is registered to.
@@ -78,41 +72,54 @@ public class MainListener implements Listener {
     /**
      * Constructor; creates a new MainListener for the given plugin.
      *
-     * @param plugin     {@link JavaPlugin} The main plugin class that calls upon this constructor
+     * @param plugin {@link JavaPlugin} The main plugin class that calls upon this constructor
      */
     public MainListener(@NotNull JavaPlugin plugin) {
         this.plugin = plugin;
     }
 
-    /**
-     * Sends a greeting message to the player upon entering.
-     *
-     * @param event     {@link PlayerJoinEvent} Player join event.
-     */
-    @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        event.getPlayer()
-                .sendMessage(Component.text("welcome, " + event.getPlayer().getName() + "!",
-                                            TextColor.color(187, 233, 255)));
+    public void onDisable() {
+        this.playerDataMap.values().forEach(data -> {
+            data.orbitingItems.forEach(Entity::remove);
+            data.orbitingItems.clear();
+        });
+    }
+
+    public PlayerData getPlayerData(UUID uniqueId) {
+        return this.playerDataMap.get(uniqueId);
     }
 
     /**
-     * Sends a farewell message to the player upon leaving. (probs redundant, might wanna change this to a server broadcast)
+     * Sends a greeting message to the player upon entering.
      *
-     * @param event     {@link PlayerQuitEvent} Player quit event.
+     * @param event {@link PlayerJoinEvent} Player join event.
+     */
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        this.playerDataMap.put(event.getPlayer().getUniqueId(), new PlayerData());
+        event.getPlayer()
+                .sendMessage(Component.text("welcome, " + event.getPlayer().getName() + "!", NamedTextColor.AQUA));
+    }
+
+    /**
+     * Sends a farewell message to the player upon leaving. (probs redundant, might wanna change this to a server
+     * broadcast)
+     *
+     * @param event {@link PlayerQuitEvent} Player quit event.
      */
     @EventHandler
     public void onPlayerLeave(PlayerQuitEvent event) {
         event.getPlayer()
-                .sendMessage(
-                        Component.text("byebye, " + event.getPlayer().getName() + "!", TextColor.color(255, 254, 211)));
-        this.orbitingItems.remove(event.getPlayer().getUniqueId());
+                .sendMessage(Component.text("byebye, " + event.getPlayer().getName() + "!", NamedTextColor.YELLOW));
+
+        despawnItems(this.playerDataMap.get(event.getPlayer().getUniqueId()));
     }
 
     /**
-     * Spawns or despawns a "sword spinner" around the player upon a right-click event with a sword of any type in hand.
+     * Spawns or despawns a "sword spinner" around the player upon a right-click event with a sword of any type in
+     * hand.
      *
-     * @param event     {@link PlayerInteractEvent} Player interaction event. Method looks for occurrence of a right click.
+     * @param event {@link PlayerInteractEvent} Player interaction event. Method looks for occurrence of a right click.
      */
     @EventHandler
     public void onPlayerRightClick(PlayerInteractEvent event) {
@@ -121,72 +128,94 @@ public class MainListener implements Listener {
 
         if (event.getHand() == EquipmentSlot.HAND && event.getItem() != null &&
             KNOWN_WEAPONS.contains(event.getItem().getType()) && event.getAction().isRightClick()) {
-            if (this.orbitingItems.remove(uuid) != null) {
-                player.sendActionBar(Component.text("Sword spinner deactivated.", TextColor.color(187, 233, 255)));
+            final var data = this.playerDataMap.get(uuid);
+
+            if (!data.orbitingItems.isEmpty()) {
+                despawnItems(data);
                 return;
             }
 
             final Location playerLocation = player.getLocation();
             final ItemStack itemStack = new ItemStack(event.getItem().getType());
-            final ItemDisplay[] items = new ItemDisplay[ITEM_COUNT];
 
-            this.orbitingItems.put(uuid, items);
-
-            for (int i = 0; i < ITEM_COUNT; i++) {
-                final int finalI = i;
-                items[i] = playerLocation.getWorld().spawn(playerLocation.clone(), ItemDisplay.class, itemDisplay -> {
-                    itemDisplay.setItemStack(itemStack);
-                    final double angle = Math.toRadians(finalI * ITEM_ANGLE_GAP);
-
-                    itemDisplay.teleport(new Location(playerLocation.getWorld(),
-                            playerLocation.getX() + ITEM_DISTANCE_FROM_PLAYER * Math.cos(angle),
-                            playerLocation.getY() + 1,
-                            playerLocation.getZ() + ITEM_DISTANCE_FROM_PLAYER * Math.sin(angle)));
-                    rotateItemDisplay(itemDisplay, angle);
-                });
-            }
+            IntStream.range(0, data.itemCount).forEach(index -> addItemDisplay(data, itemStack, playerLocation));
 
             Bukkit.getScheduler().runTaskTimer(this.plugin, task -> {
-                if (!this.orbitingItems.containsKey(uuid)) {
+                if (data.orbitingItems.isEmpty()) {
                     task.cancel();
-
-                    for (ItemDisplay item : items) {
-                        item.remove();
-                    }
-
+                    player.sendActionBar(Component.text("Sword spinner deactivated.", NamedTextColor.YELLOW));
                     return;
                 }
 
                 final Location currentLocation = player.getLocation();
 
-                for (int i = 0; i < ITEM_COUNT; i++) {
-                    final double angle = System.currentTimeMillis() * TIMESCALE % MILLIS_MOD_PERIOD / DEGREES_IN_CIRCLE * Math.toRadians(DEGREES_IN_CIRCLE) +
-                                         Math.toRadians(i * ITEM_ANGLE_GAP);
+                for (int index = 0; index < data.itemCount; index++) {
+                    final double angle =
+                            System.currentTimeMillis() * TIMESCALE % MILLIS_MOD_PERIOD / DEGREES_IN_CIRCLE *
+                            Math.toRadians(DEGREES_IN_CIRCLE) +
+                            Math.toRadians(index * DEGREES_IN_CIRCLE / data.itemCount);
 
-                    items[i].teleport(new Location(currentLocation.getWorld(),
-                            currentLocation.getX() + ITEM_DISTANCE_FROM_PLAYER * Math.cos(angle),
-                            currentLocation.getY() + 1,
-                            currentLocation.getZ() + ITEM_DISTANCE_FROM_PLAYER * Math.sin(angle)));
-                    rotateItemDisplay(items[i], angle);
+                    rotateItemDisplay(data.orbitingItems.get(index), currentLocation, angle);
                 }
             }, 0, 1);
 
-            player.sendActionBar(Component.text("Sword spinner activated. Stay safe!", TextColor.color(187, 233, 255)));
+            player.sendActionBar(Component.text("Sword spinner activated. Stay safe!", NamedTextColor.AQUA));
         }
+    }
+
+    private static void addItemDisplay(PlayerData data, ItemStack itemStack, Location playerLocation) {
+        data.orbitingItems.add(playerLocation.getWorld()
+                                       .spawn(playerLocation.clone(), ItemDisplay.class,
+                                              itemDisplay -> itemDisplay.setItemStack(itemStack)));
+    }
+
+    private static void despawnItems(PlayerData data) {
+        data.orbitingItems.forEach(Entity::remove);
+        data.orbitingItems.clear();
     }
 
     /**
      * Rotates a given ItemDisplay by a certain angle.
      *
-     * @param itemDisplay   {@link ItemDisplay} The ItemDisplay to transform.
-     * @param angle         Angle by which to rotate the aforementioned itemDisplay.
+     * @param itemDisplay {@link ItemDisplay} The ItemDisplay to transform.
+     * @param angle       Angle by which to rotate the aforementioned itemDisplay.
      */
-    private static void rotateItemDisplay(ItemDisplay itemDisplay, double angle) {
+    private static void rotateItemDisplay(ItemDisplay itemDisplay, Location location, double angle) {
+        itemDisplay.teleport(
+                new Location(location.getWorld(), location.getX() + ITEM_DISTANCE_FROM_PLAYER * Math.cos(angle),
+                             location.getY() + 1, location.getZ() + ITEM_DISTANCE_FROM_PLAYER * Math.sin(angle)));
+
         final Transformation transformation = itemDisplay.getTransformation();
 
         transformation.getLeftRotation().set(new AxisAngle4f((float) Math.toRadians(90d), 1f, 0f, 0f));
         transformation.getRightRotation().set(new AxisAngle4f((float) (angle + Math.toRadians(225d)), 0f, 0f, 1f));
 
         itemDisplay.setTransformation(transformation);
+    }
+
+    public static class PlayerData {
+        private final List<ItemDisplay> orbitingItems = new ArrayList<>(3);
+
+        private int itemCount = 3;
+
+        public void setItemCount(int newItemCount, @NotNull Location playerLocation) {
+            if (!this.orbitingItems.isEmpty()) {
+                int difference = this.itemCount - newItemCount;
+
+                if (difference > 0) {
+                    while (difference-- > 0) {
+                        this.orbitingItems.removeLast().remove();
+                    }
+                } else if (difference < 0) {
+                    final var itemStack = this.orbitingItems.getLast().getItemStack();
+
+                    while (difference++ < 0) {
+                        addItemDisplay(this, itemStack, playerLocation);
+                    }
+                }
+            }
+
+            this.itemCount = newItemCount;
+        }
     }
 }
