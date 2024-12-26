@@ -1,5 +1,7 @@
 package com.marrowbuster.learningPaperMC.listener;
 
+import com.google.common.base.Preconditions;
+import com.marrowbuster.learningPaperMC.LearningPaperMC;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -37,6 +39,10 @@ public class MainListener implements Listener {
     private static final Set<Material> KNOWN_WEAPONS =
             EnumSet.of(Material.WOODEN_SWORD, Material.STONE_SWORD, Material.IRON_SWORD, Material.GOLDEN_SWORD,
                        Material.DIAMOND_SWORD, Material.NETHERITE_SWORD);
+
+    public static final int MIN_ITEM_COUNT = 3;
+    public static final int MAX_ITEM_COUNT = 7;
+
     /**
      * Distance from which the swords orbit around the player.
      */
@@ -78,7 +84,7 @@ public class MainListener implements Listener {
         this.plugin = plugin;
     }
 
-    public void onDisable() {
+    public void cleanup() {
         this.playerDataMap.values().forEach(data -> {
             data.orbitingItems.forEach(Entity::remove);
             data.orbitingItems.clear();
@@ -96,9 +102,13 @@ public class MainListener implements Listener {
      */
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        this.playerDataMap.put(event.getPlayer().getUniqueId(), new PlayerData());
         event.getPlayer()
                 .sendMessage(Component.text("welcome, " + event.getPlayer().getName() + "!", NamedTextColor.AQUA));
+
+        this.playerDataMap.computeIfAbsent(event.getPlayer().getUniqueId(), uuid -> new PlayerData(
+                (int) LearningPaperMC.getInstance()
+                        .getConfig()
+                        .get(event.getPlayer().getUniqueId() + ".item-count", MIN_ITEM_COUNT)));
     }
 
     /**
@@ -194,11 +204,17 @@ public class MainListener implements Listener {
     }
 
     public static class PlayerData {
-        private final List<ItemDisplay> orbitingItems = new ArrayList<>(3);
+        private final List<ItemDisplay> orbitingItems = new ArrayList<>(MIN_ITEM_COUNT);
 
-        private int itemCount = 3;
+        private int itemCount;
 
-        public void setItemCount(int newItemCount, @NotNull Location playerLocation) {
+        public PlayerData(int itemCount) {
+            Preconditions.checkArgument(itemCount >= MIN_ITEM_COUNT && itemCount <= 7,
+                                        "Item count needs to be between %s and %s", MIN_ITEM_COUNT, MAX_ITEM_COUNT);
+            this.itemCount = itemCount;
+        }
+
+        public void setItemCount(int newItemCount, @NotNull Player player) {
             if (!this.orbitingItems.isEmpty()) {
                 int difference = this.itemCount - newItemCount;
 
@@ -210,12 +226,13 @@ public class MainListener implements Listener {
                     final var itemStack = this.orbitingItems.getLast().getItemStack();
 
                     while (difference++ < 0) {
-                        addItemDisplay(this, itemStack, playerLocation);
+                        addItemDisplay(this, itemStack, player.getLocation());
                     }
                 }
             }
 
             this.itemCount = newItemCount;
+            LearningPaperMC.getInstance().getConfig().set(player.getUniqueId() + ".item-count", newItemCount);
         }
     }
 }
