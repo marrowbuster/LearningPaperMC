@@ -138,7 +138,7 @@ public class MainListener implements Listener {
 
         if (event.getHand() == EquipmentSlot.HAND && event.getItem() != null &&
             KNOWN_WEAPONS.contains(event.getItem().getType()) && event.getAction().isRightClick()) {
-            final var data = this.playerDataMap.get(uuid);
+            final PlayerData data = this.playerDataMap.get(uuid);
 
             if (!data.orbitingItems.isEmpty()) {
                 despawnItems(data);
@@ -173,6 +173,40 @@ public class MainListener implements Listener {
         }
     }
 
+    // god DAMN my fuckin "monkey see monkey do" approach to learning
+    // feels like some shit out of a Rainforest Cafe, and i've never fucking been there.
+    @EventHandler
+    public void onPlayerLeftClick(PlayerInteractEvent event) {
+        final Player player = event.getPlayer();
+        final UUID uuid = player.getUniqueId();
+        if (event.getHand() == EquipmentSlot.HAND && event.getItem() == null && event.getAction().isLeftClick()) {
+            final PlayerData data = this.playerDataMap.get(uuid);
+            if (!data.orbitingItems.isEmpty()) {
+                ItemDisplay itemDisplay = data.orbitingItems.removeLast();
+                final Location spawnLocation = player.getLocation();
+
+                // intuition: finding angle from the arctangent of the x and z vectors
+                final double angle = Math.atan(spawnLocation.getDirection().getZ() / spawnLocation.getDirection().getX());
+                rotateItemDisplay(itemDisplay, spawnLocation, angle);
+                data.thrownItems.add(itemDisplay);
+                data.thrownItemCount++;
+                data.setItemCount(data.itemCount - 1, player);
+
+                Bukkit.getScheduler().runTaskTimer(this.plugin, task -> {
+                    if (data.thrownItems.isEmpty()) {
+                        task.cancel();
+                        return;
+                    }
+
+                    for (int index = 0; index < data.thrownItemCount; index++) {
+                        shiftItemDisplay(data.orbitingItems.get(index), spawnLocation, angle, 0.2d);
+                    }
+                }, 0, 1);
+            }
+        }
+
+    }
+
     private static void addItemDisplay(PlayerData data, ItemStack itemStack, Location playerLocation) {
         data.orbitingItems.add(playerLocation.getWorld()
                                        .spawn(playerLocation.clone(), ItemDisplay.class,
@@ -203,15 +237,32 @@ public class MainListener implements Listener {
         itemDisplay.setTransformation(transformation);
     }
 
+    // inuition; follow the trajectory　along which the player looks
+    private static void shiftItemDisplay(ItemDisplay itemDisplay, Location location, double angle, double offset) {
+        itemDisplay.teleport(
+                new Location(location.getWorld(), location.getX() + (offset * Math.cos(angle)),
+                            location.getY() + 1, location.getZ() + (offset * Math.sin(angle))));
+
+        final Transformation transformation = itemDisplay.getTransformation();
+
+        transformation.getLeftRotation().set(new AxisAngle4f((float) Math.toRadians(90d), 1f, 0f, 0f));
+        transformation.getRightRotation().set(new AxisAngle4f((float) (angle + Math.toRadians(225d)), 0f, 0f, 1f));
+
+        itemDisplay.setTransformation(transformation);
+    }
+
     public static class PlayerData {
         private final List<ItemDisplay> orbitingItems = new ArrayList<>(MIN_ITEM_COUNT);
+        private final List<ItemDisplay> thrownItems = new ArrayList<>(MIN_ITEM_COUNT);
 
         private int itemCount;
+        private int thrownItemCount;
 
         public PlayerData(int itemCount) {
             Preconditions.checkArgument(itemCount >= MIN_ITEM_COUNT && itemCount <= 7,
                                         "Item count needs to be between %s and %s", MIN_ITEM_COUNT, MAX_ITEM_COUNT);
             this.itemCount = itemCount;
+            this.thrownItemCount = 0;
         }
 
         public void setItemCount(int newItemCount, @NotNull Player player) {
@@ -223,7 +274,7 @@ public class MainListener implements Listener {
                         this.orbitingItems.removeLast().remove();
                     }
                 } else if (difference < 0) {
-                    final var itemStack = this.orbitingItems.getLast().getItemStack();
+                    final ItemStack itemStack = this.orbitingItems.getLast().getItemStack();
 
                     while (difference++ < 0) {
                         addItemDisplay(this, itemStack, player.getLocation());
