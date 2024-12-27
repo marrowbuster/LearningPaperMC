@@ -200,6 +200,10 @@ public class MainListener implements Listener {
 
                     for (int index = 0; index < data.thrownItemCount; index++) {
                         shiftItemDisplay(data.orbitingItems.get(index), spawnLocation, angle, 0.2d);
+                        if (data.orbitingItems.get(index).getLocation().distance(player.getLocation()) > 50d) {
+                            data.orbitingItems.remove(index);
+                            data.thrownItemCount--;
+                        }
                     }
                 }, 0, 1);
             }
