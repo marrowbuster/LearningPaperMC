@@ -48,6 +48,8 @@ public class MainListener implements Listener {
      */
     private static final double ITEM_DISTANCE_FROM_PLAYER = 2.0;
 
+    private static final double THROWN_ITEM_TRAVEL_OFFSET = 0.2;
+
     /**
      * Degrees in a circle.
      */
@@ -132,12 +134,16 @@ public class MainListener implements Listener {
      * @param event {@link PlayerInteractEvent} Player interaction event. Method looks for occurrence of a right click.
      */
     @EventHandler
-    public void onPlayerRightClick(PlayerInteractEvent event) {
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND) {
+            return;
+        }
+
         final Player player = event.getPlayer();
         final UUID uuid = player.getUniqueId();
 
-        if (event.getHand() == EquipmentSlot.HAND && event.getItem() != null &&
-            KNOWN_WEAPONS.contains(event.getItem().getType()) && event.getAction().isRightClick()) {
+        if (event.getItem() != null && KNOWN_WEAPONS.contains(event.getItem().getType()) &&
+            event.getAction().isRightClick()) {
             final PlayerData data = this.playerDataMap.get(uuid);
 
             if (!data.orbitingItems.isEmpty()) {
@@ -159,56 +165,60 @@ public class MainListener implements Listener {
 
                 final Location currentLocation = player.getLocation();
 
-                for (int index = 0; index < data.itemCount; index++) {
+                for (int index = 0; index < data.orbitingItems.size(); index++) {
+                    final var itemDisplay = data.orbitingItems.get(index);
                     final double angle =
                             System.currentTimeMillis() * TIMESCALE % MILLIS_MOD_PERIOD / DEGREES_IN_CIRCLE *
                             Math.toRadians(DEGREES_IN_CIRCLE) +
                             Math.toRadians(index * DEGREES_IN_CIRCLE / data.itemCount);
 
-                    rotateItemDisplay(data.orbitingItems.get(index), currentLocation, angle);
+                    itemDisplay.teleport(new Location(currentLocation.getWorld(), currentLocation.getX() +
+                                                                                  ITEM_DISTANCE_FROM_PLAYER *
+                                                                                  Math.cos(angle),
+                                                      currentLocation.getY() + 1, currentLocation.getZ() +
+                                                                                  ITEM_DISTANCE_FROM_PLAYER *
+                                                                                  Math.sin(angle)));
+                    rotateItemDisplay(data.orbitingItems.get(index), angle);
                 }
             }, 0, 1);
 
             player.sendActionBar(Component.text("Sword spinner activated. Stay safe!", NamedTextColor.AQUA));
-        }
-    }
-
-    // god DAMN my fuckin "monkey see monkey do" approach to learning
-    // feels like some shit out of a Rainforest Cafe, and i've never fucking been there.
-    @EventHandler
-    public void onPlayerLeftClick(PlayerInteractEvent event) {
-        final Player player = event.getPlayer();
-        final UUID uuid = player.getUniqueId();
-        if (event.getHand() == EquipmentSlot.HAND && event.getItem() == null && event.getAction().isLeftClick()) {
+        } else if (event.getItem() == null && event.getAction().isLeftClick()) {
             final PlayerData data = this.playerDataMap.get(uuid);
+
             if (!data.orbitingItems.isEmpty()) {
-                ItemDisplay itemDisplay = data.orbitingItems.removeLast();
+                final ItemDisplay itemDisplay = data.orbitingItems.removeLast();
                 final Location spawnLocation = player.getLocation();
 
                 // intuition: finding angle from the arctangent of the x and z vectors
-                final double angle = Math.atan(spawnLocation.getDirection().getZ() / spawnLocation.getDirection().getX());
-                rotateItemDisplay(itemDisplay, spawnLocation, angle);
-                data.thrownItems.add(itemDisplay);
-                data.thrownItemCount++;
-                data.setItemCount(data.itemCount - 1, player);
+                final double angle =
+                        Math.atan(spawnLocation.getDirection().getZ() / spawnLocation.getDirection().getX());
 
-                Bukkit.getScheduler().runTaskTimer(this.plugin, task -> {
-                    if (data.thrownItems.isEmpty()) {
-                        task.cancel();
-                        return;
-                    }
+                rotateItemDisplay(itemDisplay, angle);
 
-                    for (int index = 0; index < data.thrownItemCount; index++) {
-                        shiftItemDisplay(data.orbitingItems.get(index), spawnLocation, angle, 0.2d);
-                        if (data.orbitingItems.get(index).getLocation().distance(player.getLocation()) > 50d) {
-                            data.orbitingItems.remove(index);
-                            data.thrownItemCount--;
+                if (data.thrownItems.isEmpty()) {
+                    Bukkit.getScheduler().runTaskTimer(this.plugin, task -> {
+                        if (data.thrownItems.isEmpty()) {
+                            task.cancel();
+                            return;
                         }
-                    }
-                }, 0, 1);
+
+                        data.thrownItems.removeIf(thrownItem -> {
+                            shiftItemDisplay(thrownItem, angle);
+                            final boolean remove = thrownItem.getLocation().distance(player.getLocation()) > 50d;
+
+                            if (remove) {
+                                thrownItem.remove();
+                            }
+
+                            return remove;
+                        });
+                    }, 0, 1);
+                }
+
+                data.thrownItems.add(itemDisplay);
             }
         }
-
     }
 
     private static void addItemDisplay(PlayerData data, ItemStack itemStack, Location playerLocation) {
@@ -228,11 +238,7 @@ public class MainListener implements Listener {
      * @param itemDisplay {@link ItemDisplay} The ItemDisplay to transform.
      * @param angle       Angle by which to rotate the aforementioned itemDisplay.
      */
-    private static void rotateItemDisplay(ItemDisplay itemDisplay, Location location, double angle) {
-        itemDisplay.teleport(
-                new Location(location.getWorld(), location.getX() + ITEM_DISTANCE_FROM_PLAYER * Math.cos(angle),
-                             location.getY() + 1, location.getZ() + ITEM_DISTANCE_FROM_PLAYER * Math.sin(angle)));
-
+    private static void rotateItemDisplay(ItemDisplay itemDisplay, double angle) {
         final Transformation transformation = itemDisplay.getTransformation();
 
         transformation.getLeftRotation().set(new AxisAngle4f((float) Math.toRadians(90d), 1f, 0f, 0f));
@@ -242,17 +248,11 @@ public class MainListener implements Listener {
     }
 
     // inuition; follow the trajectory　along which the player looks
-    private static void shiftItemDisplay(ItemDisplay itemDisplay, Location location, double angle, double offset) {
+    private static void shiftItemDisplay(ItemDisplay itemDisplay, double angle) {
+        final var location = itemDisplay.getLocation();
         itemDisplay.teleport(
-                new Location(location.getWorld(), location.getX() + (offset * Math.cos(angle)),
-                            location.getY() + 1, location.getZ() + (offset * Math.sin(angle))));
-
-        final Transformation transformation = itemDisplay.getTransformation();
-
-        transformation.getLeftRotation().set(new AxisAngle4f((float) Math.toRadians(90d), 1f, 0f, 0f));
-        transformation.getRightRotation().set(new AxisAngle4f((float) (angle + Math.toRadians(225d)), 0f, 0f, 1f));
-
-        itemDisplay.setTransformation(transformation);
+                new Location(location.getWorld(), location.getX() + THROWN_ITEM_TRAVEL_OFFSET * Math.cos(angle),
+                             location.getY(), location.getZ() + THROWN_ITEM_TRAVEL_OFFSET * Math.sin(angle)));
     }
 
     public static class PlayerData {
@@ -260,13 +260,11 @@ public class MainListener implements Listener {
         private final List<ItemDisplay> thrownItems = new ArrayList<>(MIN_ITEM_COUNT);
 
         private int itemCount;
-        private int thrownItemCount;
 
         public PlayerData(int itemCount) {
             Preconditions.checkArgument(itemCount >= MIN_ITEM_COUNT && itemCount <= 7,
                                         "Item count needs to be between %s and %s", MIN_ITEM_COUNT, MAX_ITEM_COUNT);
             this.itemCount = itemCount;
-            this.thrownItemCount = 0;
         }
 
         public void setItemCount(int newItemCount, @NotNull Player player) {
