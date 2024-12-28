@@ -48,7 +48,9 @@ public class MainListener implements Listener {
      */
     private static final double ITEM_DISTANCE_FROM_PLAYER = 2.0;
 
-    private static final double THROWN_ITEM_TRAVEL_OFFSET = 0.2;
+    private static final double THROWN_ITEM_TRAVEL_OFFSET = 0.5;
+
+    private static final double THROWN_ITEM_TRAVEL_MAX_DISTANCE = 50d;
 
     /**
      * Degrees in a circle.
@@ -166,7 +168,7 @@ public class MainListener implements Listener {
                 final Location currentLocation = player.getLocation();
 
                 for (int index = 0; index < data.orbitingItems.size(); index++) {
-                    final var itemDisplay = data.orbitingItems.get(index);
+                    final ItemDisplay itemDisplay = data.orbitingItems.get(index);
                     final double angle =
                             System.currentTimeMillis() * TIMESCALE % MILLIS_MOD_PERIOD / DEGREES_IN_CIRCLE *
                             Math.toRadians(DEGREES_IN_CIRCLE) +
@@ -191,10 +193,10 @@ public class MainListener implements Listener {
                 final Location spawnLocation = player.getLocation();
 
                 // intuition: finding angle from the arctangent of the x and z vectors
-                final double angle =
-                        Math.atan(spawnLocation.getDirection().getZ() / spawnLocation.getDirection().getX());
+                final double yaw = (double) player.getYaw();
+                player.sendActionBar(Component.text("player yaw: %s".formatted(yaw)).color(NamedTextColor.RED));
 
-                rotateItemDisplay(itemDisplay, angle);
+                rotateItemDisplay(itemDisplay, yaw);
 
                 if (data.thrownItems.isEmpty()) {
                     Bukkit.getScheduler().runTaskTimer(this.plugin, task -> {
@@ -203,12 +205,12 @@ public class MainListener implements Listener {
                             return;
                         }
 
-                        data.thrownItems.removeIf(thrownItem -> {
-                            shiftItemDisplay(thrownItem, angle);
-                            final boolean remove = thrownItem.getLocation().distance(player.getLocation()) > 50d;
+                        data.thrownItems.entrySet().removeIf(thrownItem -> {
+                            shiftItemDisplay(thrownItem.getValue(), yaw);
+                            final boolean remove = thrownItem.getValue().getLocation().distance(thrownItem.getKey()) > THROWN_ITEM_TRAVEL_MAX_DISTANCE;
 
                             if (remove) {
-                                thrownItem.remove();
+                                thrownItem.getValue().remove();
                             }
 
                             return remove;
@@ -216,7 +218,7 @@ public class MainListener implements Listener {
                     }, 0, 1);
                 }
 
-                data.thrownItems.add(itemDisplay);
+                data.thrownItems.put(spawnLocation, itemDisplay);
             }
         }
     }
@@ -257,7 +259,7 @@ public class MainListener implements Listener {
 
     public static class PlayerData {
         private final List<ItemDisplay> orbitingItems = new ArrayList<>(MIN_ITEM_COUNT);
-        private final List<ItemDisplay> thrownItems = new ArrayList<>(MIN_ITEM_COUNT);
+        private final Map<Location, ItemDisplay> thrownItems = new HashMap<>(MIN_ITEM_COUNT);
 
         private int itemCount;
 
