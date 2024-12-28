@@ -193,7 +193,7 @@ public class MainListener implements Listener {
                 final Location spawnLocation = player.getLocation();
 
                 // intuition: finding angle from the arctangent of the x and z vectors
-                final double yaw = (double) player.getYaw();
+                final double yaw = player.getYaw();
                 player.sendActionBar(Component.text("player yaw: %s".formatted(yaw)).color(NamedTextColor.RED));
 
                 rotateItemDisplay(itemDisplay, yaw);
@@ -251,7 +251,7 @@ public class MainListener implements Listener {
 
     // inuition; follow the trajectory　along which the player looks
     private static void shiftItemDisplay(ItemDisplay itemDisplay, double angle) {
-        final var location = itemDisplay.getLocation();
+        final Location location = itemDisplay.getLocation();
         itemDisplay.teleport(
                 new Location(location.getWorld(), location.getX() + THROWN_ITEM_TRAVEL_OFFSET * Math.cos(angle),
                              location.getY(), location.getZ() + THROWN_ITEM_TRAVEL_OFFSET * Math.sin(angle)));
